@@ -1,0 +1,42 @@
+{
+  "manifest_version": "1",
+  "generated_at": "2026-05-14T00:00:00Z",
+  "igs": [
+    {
+      "name": "hl7-europe-base",
+      "version": "0.1.0-placeholder",
+      "source_url": "https://build.fhir.org/ig/hl7-eu/base/",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "last_updated": "2026-05-14",
+      "description": "HL7 Europe Base profile (placeholder pack in v0.1; real pack lands in v0.2).",
+      "placeholder": true
+    },
+    {
+      "name": "ips-international",
+      "version": "0.1.0-placeholder",
+      "source_url": "https://hl7.org/fhir/uv/ips/",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "last_updated": "2026-05-14",
+      "description": "International Patient Summary (placeholder pack in v0.1).",
+      "placeholder": true
+    },
+    {
+      "name": "mcsd",
+      "version": "0.1.0-placeholder",
+      "source_url": "https://hl7.org/fhir/uv/mcsd/",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "last_updated": "2026-05-14",
+      "description": "mCSD provider directory exchange (placeholder pack in v0.1).",
+      "placeholder": true
+    },
+    {
+      "name": "ehds-skeleton-pending",
+      "version": "0.0.1",
+      "source_url": "https://health.ec.europa.eu/ehealth-digital-health-and-care/european-health-data-space_en",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "last_updated": "2026-05-14",
+      "description": "EHDS secondary-use submission skeleton (profile not yet published; will track once draft lands).",
+      "placeholder": true
+    }
+  ]
+}
