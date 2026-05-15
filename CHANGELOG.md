@@ -16,13 +16,22 @@ adheres to [Semantic Versioning](https://semver.org/).
 - Custom-profile loading from a local IG directory.
 - SNOMED CT subset validation hooks.
 
-## [0.1.0] - 2026-05-14
+## [0.1.0] - 2026-05-15
 
 ### Added
 - Initial release: CLI surface (`validate`, `list-igs`, `manifest` subcommands).
 - Manifest format for bundled IG packs (name, version, source URL, sha256, last-updated).
-- Placeholder IGs for hl7-europe-base, ips-international, mcsd, ehds-skeleton-pending.
-- Structural + minimum-cardinality validation for Patient, Bundle, Observation, Encounter, Condition.
+- Placeholder IGs for hl7-europe-base, ips-international, mcsd, ehds-skeleton-pending
+  (no real StructureDefinition content; see README "Status").
+- Minimal structural sanity check for Patient, Bundle, Observation, Encounter, Condition.
+  NOT a conformance validator — see README.
 - Structured-error JSON on stdout (CI-friendly).
 - MIT license.
 - pytest matrix on py3.10/3.11/3.12.
+
+### Security
+- `verify_pack_integrity()` now fails closed on placeholder packs (previously
+  returned True for any bytes when `placeholder=true`; would have been a
+  supply-chain hole in v0.2 once real packs ship).
+- GitHub Actions SHA-pinned (`actions/checkout`, `actions/setup-python`).
+- Dependabot enabled for github-actions + pip ecosystems.
