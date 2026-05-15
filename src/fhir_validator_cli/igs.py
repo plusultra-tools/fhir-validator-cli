@@ -73,15 +73,33 @@ def compute_sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def verify_pack_integrity(name: str, pack_bytes: bytes) -> bool:
+def verify_pack_integrity(
+    name: str, pack_bytes: bytes, *, allow_placeholder: bool = False
+) -> bool:
     """Check that a pack's bytes match the manifest-declared sha256.
 
-    Returns True for placeholder packs (no integrity claim) when the manifest
-    flag is set, otherwise compares against the declared digest.
+    Fail-closed by default: when an IG is flagged ``placeholder: true`` in the
+    manifest, integrity CANNOT be verified (no real digest exists) and this
+    function returns ``False``. Callers must opt in to the placeholder path
+    with ``allow_placeholder=True`` and handle the "no verification possible"
+    case explicitly — this prevents a supply-chain hole where an attacker
+    re-flags a tampered real pack as placeholder to bypass verification.
+
+    Returns:
+        ``True``  iff the pack's sha256 matches the manifest entry AND the
+                  manifest entry is not a placeholder.
+        ``False`` for unknown IGs, placeholder IGs (unless explicitly opted-in,
+                  in which case still ``False`` — placeholders have no integrity
+                  claim by construction), or sha256 mismatches.
     """
     ig = get_ig(name)
     if ig is None:
         return False
     if ig.placeholder:
-        return True
+        # Placeholder entries carry sha256 = "0" * 64 (no real digest).
+        # Even if a caller opts in, we cannot truthfully say "verified",
+        # so we always return False and let the caller branch on the
+        # placeholder flag via get_ig(name).placeholder if it wants to
+        # accept the pack without verification.
+        return False
     return compute_sha256(pack_bytes) == ig.sha256

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import unittest
 
-from fhir_validator_cli.igs import list_igs, get_ig, load_manifest
+from fhir_validator_cli.igs import list_igs, get_ig, load_manifest, verify_pack_integrity
 from fhir_validator_cli.validator import validate_resource
 
 
@@ -83,6 +83,26 @@ class ManifestTest(unittest.TestCase):
         manifest = load_manifest()
         serialised = json.dumps(manifest)
         self.assertIn("hl7-europe-base", serialised)
+
+
+class IntegrityTest(unittest.TestCase):
+    def test_verify_unknown_ig_returns_false(self) -> None:
+        self.assertFalse(verify_pack_integrity("no-such-ig", b"anything"))
+
+    def test_verify_placeholder_returns_false_default(self) -> None:
+        # Regression: v0.1.0 returned True for placeholder packs (supply-chain
+        # hole). Must now fail closed.
+        ig = get_ig("hl7-europe-base")
+        self.assertIsNotNone(ig)
+        self.assertTrue(ig.placeholder)
+        self.assertFalse(verify_pack_integrity("hl7-europe-base", b"anything"))
+
+    def test_verify_placeholder_returns_false_even_when_opted_in(self) -> None:
+        # Even with allow_placeholder=True we never assert verified for a
+        # placeholder; caller must inspect get_ig(...).placeholder explicitly.
+        self.assertFalse(
+            verify_pack_integrity("hl7-europe-base", b"anything", allow_placeholder=True)
+        )
 
 
 if __name__ == "__main__":
