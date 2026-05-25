@@ -13,17 +13,67 @@ from fhir_validator_cli.igs import list_igs, load_manifest
 from fhir_validator_cli.validator import validate_resource
 
 
+# Hard cap on input resource file size to bound memory + parse time and prevent
+# trivial OOM via a 1 GB JSON. FHIR resources in practice are <1 MB; 100 MB is
+# a generous Bundle ceiling. Tunable via FHIRV_MAX_RESOURCE_BYTES.
+_DEFAULT_MAX_RESOURCE_BYTES = 100 * 1024 * 1024  # 100 MB
+
+
+def _max_resource_bytes() -> int:
+    """Read the input-size cap from env, falling back to default."""
+    import os
+
+    raw = os.environ.get("FHIRV_MAX_RESOURCE_BYTES")
+    if raw is None:
+        return _DEFAULT_MAX_RESOURCE_BYTES
+    try:
+        value = int(raw)
+        return value if value > 0 else _DEFAULT_MAX_RESOURCE_BYTES
+    except ValueError:
+        return _DEFAULT_MAX_RESOURCE_BYTES
+
+
 def _cmd_validate(args: argparse.Namespace) -> int:
     """Validate a FHIR resource file against a named IG."""
     resource_path = Path(args.resource)
     if not resource_path.exists():
         print(json.dumps({"error": f"file not found: {resource_path}"}), file=sys.stderr)
         return 2
+
+    try:
+        size = resource_path.stat().st_size
+    except OSError as exc:
+        print(json.dumps({"error": f"cannot stat file: {exc}"}), file=sys.stderr)
+        return 2
+    cap = _max_resource_bytes()
+    if size > cap:
+        print(
+            json.dumps(
+                {
+                    "error": (
+                        f"resource file too large: {size} bytes exceeds cap of "
+                        f"{cap} bytes (FHIRV_MAX_RESOURCE_BYTES)"
+                    )
+                }
+            ),
+            file=sys.stderr,
+        )
+        return 2
+
     try:
         with resource_path.open("r", encoding="utf-8") as fh:
             resource = json.load(fh)
     except json.JSONDecodeError as exc:
         print(json.dumps({"error": f"invalid JSON: {exc}"}), file=sys.stderr)
+        return 2
+
+    if not isinstance(resource, dict):
+        print(
+            json.dumps(
+                {"error": "top-level JSON value must be a FHIR resource object, not array/scalar"}
+            ),
+            file=sys.stderr,
+        )
         return 2
 
     result = validate_resource(resource, args.ig)

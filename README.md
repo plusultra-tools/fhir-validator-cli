@@ -1,82 +1,100 @@
 # fhir-validator-cli
 
-**Zero-config FHIR R4/R5 validator with bundled EU Implementation Guide packs.** One `pip install` and you can validate Patient/Encounter/Observation/Bundle resources against HL7 Europe Base, IPS, mCSD, and the EHDS skeleton (when published) — no fetching IGs from six different registries first.
+[![tests](https://github.com/plusultra-tools/fhir-validator-cli/actions/workflows/test.yml/badge.svg)](https://github.com/plusultra-tools/fhir-validator-cli/actions/workflows/test.yml)
+[![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Status](https://img.shields.io/badge/status-alpha%20scaffold-orange)](#status)
 
-```bash
-pip install fhir-validator-cli
-fhirv validate patient.json --ig hl7-europe-base
-```
+> v0.1 scaffold for a CLI that will validate FHIR R4/R5 resources against bundled EU Implementation Guide packs. **Today this is NOT a conformance validator** — see [Status](#status) below.
 
 ---
 
-## Why this exists
+## Status (read this first)
 
-The European Health Data Space (EHDS) regulation forces hospitals, regional health authorities, and digital-health vendors to submit FHIR resources conformant to a specific stack of EU-flavoured IGs:
+**v0.1 is a CLI scaffold and manifest format.** It does not perform real IG conformance validation. Specifically:
 
-- **HL7 Europe Base** — the floor profile for any EU-wide FHIR exchange.
-- **IPS (International Patient Summary)** — cross-border patient summaries.
-- **mCSD (Care Services Discovery)** — provider directory exchange.
-- **EHDS skeleton** — the secondary-use submission profile (draft as of 2026; will be mandatory).
+- The 4 bundled IGs declared in the manifest (`hl7-europe-base`, `ips-international`, `mcsd`, `ehds-skeleton-pending`) are **placeholders** with `sha256 = 0` and `placeholder: true`. No StructureDefinition content ships.
+- The validator runs a minimal structural sanity check: every resource must have a `resourceType` field plus a tiny hand-coded required-field map covering 5 resource types (Patient, Bundle, Observation, Encounter, Condition) with a total of ~6 required fields. No terminology check, no cardinality beyond required/not-required, no slicing, no fixed-value, no must-support, no invariants, no profile walk.
+- Almost any resource you throw at it will return `"valid": true`. That is **expected behaviour for v0.1**, not a bug.
 
-The existing toolchain is split:
+**Use this today only as:** a smoke test for the CLI surface, an example of the manifest format, a fixture for downstream tooling that needs *some* `fhirv`-compatible binary on `$PATH`. Do **not** rely on `"valid": true` as evidence of IG conformance.
 
-- **HAPI FHIR validator** (Java) — heavy, server-grade, mature, but you have to fetch each IG package yourself from `simplifier.net` / `build.fhir.org` / various national registries. Wires up in 1-2 days the first time.
-- **fhir.js / fhirpath.js** (Node) — runtime-validation oriented, no CLI-first DX.
-- **Inferno** — testing harness for FHIR servers, not a CLI.
+Real IG-level validation is scheduled for v0.2.
 
-We close the gap. `fhirv` ships **the EU IG packs bundled inside the wheel**, with a tamper-evident manifest (sha256 of each pack + provenance URL), so CI pipelines can do `pip install && fhirv validate` and get a meaningful exit code in <2 seconds.
+If you need production-grade FHIR validation today, use **HAPI FHIR ValidationCLI** ([docs](https://hapifhir.io/hapi-fhir/docs/validation/instance_validator.html)) or **Firely .NET SDK / firely-terminal**.
 
-## What it does
+---
 
-1. `pip install fhir-validator-cli` — single dependency, pure Python, no JVM.
-2. `fhirv validate resource.json --ig hl7-europe-base` — validates a FHIR resource or Bundle against a named bundled IG.
-3. Exit code `0` if valid; exit code `1` and structured-error JSON to stdout if not. Designed for CI: redirect stdout, parse with `jq`, fail the build.
-4. `fhirv list-igs` — prints the bundled IGs with version + last-updated + sha256.
-5. `fhirv manifest` — dumps the full IG manifest (source URL, version, sha256 of each pack) so you can audit provenance in your supply chain.
+## Install
 
-## What it does NOT do
+```bash
+pip install fhir-validator-cli   # not yet on PyPI; install from source for now
+```
 
-- Not a replacement for **HAPI FHIR validator** when you need server-side, terminology-server-backed, real-time validation. HAPI remains the reference for that path.
-- No bundled FHIR server, no REST endpoints, no UI. CLI-first, single binary mindset.
-- No terminology expansion against external $expand operations in v0.1. (v0.3 will allow plugging a tx-server URL.)
-- No code-system normalisation. Garbage in, garbage out at the terminology layer.
+From source:
 
-## Bundled IGs (v0.1)
+```bash
+git clone https://github.com/plusultra-tools/fhir-validator-cli
+cd fhir-validator-cli
+pip install -e ".[dev]"
+```
 
-> v0.1 ships the manifest format and **one placeholder IG** (`hl7-europe-base@0.0.1-placeholder`) so the CLI surface is exercised end-to-end. v0.2 will bundle the real packs once the legal review on redistribution clears. The schedule below is the target for v0.2.
+## CLI surface (v0.1)
 
-| Name | Version | Source URL | sha256 (target v0.2) |
-|---|---|---|---|
-| `hl7-europe-base` | 0.1.0 (v0.2 target: 1.0.0) | https://build.fhir.org/ig/hl7-eu/base/ | (pending v0.2) |
-| `ips-international` | 0.1.0 (v0.2 target: 2.0.0-ballot) | https://hl7.org/fhir/uv/ips/ | (pending v0.2) |
-| `mcsd` | 0.1.0 (v0.2 target: 1.0.0) | https://hl7.org/fhir/uv/mcsd/ | (pending v0.2) |
-| `ehds-skeleton-pending` | 0.0.1 | https://health.ec.europa.eu/ehealth-digital-health-and-care/european-health-data-space_en | (skeleton, EHDS profile not yet published) |
+```bash
+fhirv validate patient.json --ig hl7-europe-base   # base-shape check only (see Status)
+fhirv list-igs                                     # list bundled IGs (all placeholders today)
+fhirv manifest                                     # dump the raw IG manifest JSON
+fhirv --version
+```
 
-The actual values are kept in `src/fhir_validator_cli/data/ig-manifest.json`, which is the single source of truth. Run `fhirv manifest` to dump it.
+Exit code `0` on pass, `1` on fail, `2` on user error (file not found / invalid JSON).
+
+## What v0.1 does NOT do
+
+- Does **not** walk StructureDefinitions.
+- Does **not** ship real EU IG content — all bundled IGs are placeholders.
+- Does **not** do terminology expansion (`$expand`, SNOMED CT, LOINC, ICD-10).
+- Does **not** cover most of the ~150 FHIR R4 resources — only 5 have any required-field rules.
+- Does **not** validate against `meta.profile`.
+- Does **not** offer `--strict`, `--profile`, `--severity-filter` flags.
+- Does **not** replace HAPI FHIR validator, Firely .NET SDK / firely-terminal, or Inferno.
 
 ## Roadmap
 
-- **v0.1 (this release)** — CLI surface, manifest format, placeholder IG, structured validation errors, JSON-Schema-level checks.
-- **v0.2** — Real EU IG packs bundled, full StructureDefinition walk.
-- **v0.3** — Optional terminology-server plug, SNOMED CT subset validation, custom-profile loading.
-- **v1.0** — Stable wire format for the structured-error JSON; semver guarantees.
+- **v0.1 (this release)** — CLI surface + manifest format + base structural sanity check.
+- **v0.2** — Real EU IG packs bundled (hl7-europe-base first), full StructureDefinition walk, `--strict`, `--profile` flags, generated required-fields map from FHIR R4 metadata covering all resources.
+- **v0.3** — Optional terminology-server plug (`--tx-server`), SNOMED CT subset validation, custom-profile loading.
+- **v1.0** — Stable wire format for structured-error JSON, semver guarantees.
 
-## Pricing
+## Why this might eventually exist
 
-- **CLI: MIT, free, forever.**
-- **Hosted CI-as-a-service (planned)** — €19/mo (solo) to €49/mo (team). Same validation, but webhook-driven, dashboards, slack alerts, audit log. Stripe-billed when the demand signal justifies it.
+The European Health Data Space (EHDS) regulation (entered into force 2025; phased in 2026-2031) will require FHIR resources conformant to a stack of EU-flavoured IGs (HL7 Europe Base, IPS, mCSD, an EHDS-specific submission profile). Today the toolchain for that workflow is fragmented: HAPI FHIR validator (Java, heavy, requires fetching each IG pack from `simplifier.net` / national registries) and the Firely .NET stack (Windows-first, .NET runtime).
 
-## Audience
+The wedge — *if* this venture survives to v0.2 — is a pure-Python wheel with EU IG packs bundled, suitable for `pip install && fhirv validate` in a Linux CI runner with no JVM and no first-run network fetch. v0.1 ships only the wrapper.
 
-- FHIR engineers at EU hospital groups, regional health authorities, EHDS National Contact Points.
-- HL7 Europe affiliate working groups.
-- Digital-health vendors integrating to EU FHIR endpoints.
-- Distribution channels: **r/HL7**, **HL7 Europe Slack**, **dev.to**, **awesome-fhir** GitHub list, EHDS engineering mailing lists.
+## Audience (target, not validated)
+
+FHIR engineers at EU hospital integration teams who already run Python in CI and want a faster smoke test than spinning up HAPI.
+
+Until at least one such engineer files an issue or starts a discussion, the target audience is **hypothetical**. See `kill-gate.md` (operator-internal) for the 30-day demand-signal threshold.
 
 ## Contributing
 
-Open an issue with a real resource that fails validation but should pass (or vice versa). PRs welcome — especially for additional EU national IGs (Spain HL7-ES, France ANS, Germany MIO/KBV).
+See [CONTRIBUTING.md](CONTRIBUTING.md). Issues welcome, especially:
+
+- Bug reports against the v0.1 CLI surface (`--help`, exit codes, JSON output shape).
+- Feedback on the manifest format before v0.2 locks it in.
+- Pointers to EU national IGs (Spain HL7-ES, France ANS, Germany MIO/KBV) that should be in scope for v0.2.
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for the vulnerability disclosure policy.
 
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+## Trademarks
+
+FHIR® and HL7® are registered trademarks of Health Level Seven International. This project is not affiliated with HL7. References to IPS, mCSD, and EHDS are nominative use of standard names.
